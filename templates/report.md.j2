@@ -1,0 +1,82 @@
+# Volatile Memory Forensic Report
+
+**Image:** {{ image_path }}
+**Generated:** {{ generated_at }}
+
+---
+
+## Summary
+
+- Suspicious Processes: {{ analysis.suspicious_processes | length }}
+- Suspicious Network Connections: {{ analysis.suspicious_network | length }}
+- YARA Matches: {{ analysis.yara_matches | length }}
+- Risk Score: {{ analysis.score }}
+
+{{ analysis.summary }}
+
+---
+
+{% if analysis.suspicious_processes %}
+## Suspicious Processes
+
+{% for proc in analysis.suspicious_processes %}
+### Process: {{ proc.name }} (PID: {{ proc.pid }}, PPID: {{ proc.ppid }})
+
+**Reason:** {{ proc.reason }}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.suspicious_network %}
+## Suspicious Network Connections
+
+{% for conn in analysis.suspicious_network %}
+### Connection: {{ conn.foreign_addr }}:{{ conn.foreign_port }}
+
+- **Local Port:** {{ conn.local_port }}
+- **State:** {{ conn.state }}
+- **Reason:** {{ conn.reason }}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.yara_matches %}
+## YARA Matches
+
+{% for match in analysis.yara_matches %}
+### Match: {{ match.rule }}
+
+{{ match.description }}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if not analysis.suspicious_processes and not analysis.suspicious_network and not analysis.yara_matches %}
+## No Issues Detected
+
+No suspicious activity detected based on current heuristics.
+{% endif %}
+
+{% if config.report.include_raw_sections %}
+## Raw Plugin Outputs
+
+### Process List (pslist)
+
+```text
+{{ analysis.parsed_data.pslist_raw }}
+```
+
+### Network Connections (netscan)
+
+```text
+{{ analysis.parsed_data.netscan_raw }}
+```
+
+{% endif %}
+
+---
+
+**End of Report**

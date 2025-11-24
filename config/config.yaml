@@ -1,0 +1,83 @@
+# config/config.yaml
+
+volatility:
+  # Path to the `vol` (volatility3) CLI
+  binary_path: "vol"              # or absolute path if needed
+  default_plugins:
+    - "windows.pslist.PsList"
+    - "windows.netscan.NetScan"
+    - "windows.dlllist.DllList"
+    - "windows.psscan.PsScan"
+    - "windows.pstree.PsTree"
+    - "windows.malfind.Malfind"
+    - "windows.cmdline.CmdLine"
+    - "windows.handles.Handles"
+    - "windows.registry.hivelist.HiveList"
+    - "windows.sessions.Sessions"
+
+analysis:
+  # Simple suspicious process indicators
+  suspicious_process_names:
+    - "mimikatz.exe"
+    - "procdump.exe"
+    - "lsassdump.exe"
+    - "mimikatz"
+    - "procdump"
+    - "psexec"
+    - "powershell_ise"
+    - "cmd.exe"
+    - "wmic.exe"
+  high_risk_processes:
+    - "lsass.exe"
+    - "winlogon.exe"
+    - "services.exe"
+    - "conhost.exe"
+    - "svchost.exe"
+  suspicious_dll_patterns:
+    - "reflective"
+    - "inject"
+    - "shellcode"
+  suspicious_ports:
+    - 4444  # Metasploit default
+    - 5555
+    - 6666
+    - 31337
+    - 8888
+    - 9999
+# YARA scanning configuration
+yara:
+  enabled: false  # Set to true when you have YARA rules
+  rules_dir: "yara_rules"
+  scan_memory: true
+
+# Threat Intelligence Integration
+threat_intel:
+  virustotal:
+    enabled: false  # Set to true and add API key
+    api_key: "YOUR_VT_API_KEY_HERE"
+  
+  hybrid_analysis:
+    enabled: false
+    api_key: "YOUR_HA_API_KEY_HERE"
+# MITRE ATT&CK Mapping
+mitre:
+  enabled: true
+  # Map suspicious activities to MITRE techniques
+  technique_mapping:
+    credential_dumping: "T1003"
+    process_injection: "T1055"
+    command_execution: "T1059"
+    network_connection: "T1071"
+
+# Report Generation
+report:
+  output_dir: "reports"
+  include_raw_sections: true
+  format: "markdown"  # Options: markdown, html, pdf
+  
+# Scoring thresholds
+scoring:
+  low_risk: 10
+  medium_risk: 30
+  high_risk: 50
+  critical_risk: 100

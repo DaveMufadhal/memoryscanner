@@ -1,0 +1,6 @@
+volatility3        # core engine (you still need OS profiles etc.)
+Jinja2             # templated reports
+PyYAML             # for config.yaml
+yara-python        # YARA scanning
+markdown           # optional: convert markdown to HTML
+weasyprint         # optional: HTML → PDF (or use another PDF library)
