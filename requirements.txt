@@ -4,3 +4,4 @@ PyYAML             # for config.yaml
 yara-python        # YARA scanning
 markdown           # optional: convert markdown to HTML
 weasyprint         # optional: HTML → PDF (or use another PDF library)
+rich               # beautiful CLI interface
