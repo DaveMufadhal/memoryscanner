@@ -16,34 +16,84 @@ volatility:
     - "windows.sessions.Sessions"
 
 analysis:
-  # Simple suspicious process indicators
-  suspicious_process_names:
+  # HIGH-CONFIDENCE malware tools (rarely legitimate)
+  malware_tools:
     - "mimikatz.exe"
-    - "procdump.exe"
-    - "lsassdump.exe"
     - "mimikatz"
-    - "procdump"
-    - "psexec"
-    - "powershell_ise"
-    - "cmd.exe"
-    - "wmic.exe"
-  high_risk_processes:
+    - "procdump.exe"
+    - "procdump64.exe"
+    - "pwdump"
+    - "gsecdump"
+    - "wce.exe"
+    - "fgdump"
+    - "cachedump"
+    - "lslsass"
+  
+  # Remote access tools (context-dependent)
+  remote_access_tools:
+    - "psexec.exe"
+    - "psexesvc.exe"
+    - "winexesvc.exe"
+    - "remcom.exe"
+    - "nc.exe"
+    - "netcat.exe"
+    - "plink.exe"
+  
+  # Legitimate Windows processes (whitelist - do NOT flag these)
+  legitimate_processes:
+    - "system"
+    - "smss.exe"
+    - "csrss.exe"
+    - "wininit.exe"
+    - "services.exe"
     - "lsass.exe"
+    - "svchost.exe"
+    - "explorer.exe"
+    - "winlogon.exe"
+    - "taskhost.exe"
+    - "dwm.exe"
+    - "spoolsv.exe"
+    - "wmpnetwk.exe"
+    - "mspaint.exe"
+    - "notepad.exe"
+    - "dumpit.exe"  # Memory dump tool
+    - "conhost.exe"
+    - "cmd.exe"      # Legitimate when spawned by explorer.exe
+    - "wmic.exe"     # Legitimate system tool
+  
+  # Suspicious parent-child relationships (context matters)
+  suspicious_parent_child:
+    # Office apps spawning scripts
+    - parent: ["winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe"]
+      child: ["cmd.exe", "powershell.exe", "wscript.exe", "cscript.exe", "mshta.exe"]
+      severity: "HIGH"
+    # Browsers spawning scripts
+    - parent: ["iexplore.exe", "chrome.exe", "firefox.exe", "msedge.exe"]
+      child: ["cmd.exe", "powershell.exe", "wscript.exe"]
+      severity: "HIGH"
+  
+  # Malfind whitelist - processes that legitimately have executable memory
+  malfind_whitelist:
+    - "svchost.exe"
+    - "explorer.exe"
+    - "chrome.exe"
+    - "firefox.exe"
+    - "iexplore.exe"
+    - "mspaint.exe"
+    - "notepad.exe"
+    - "wmpnetwk.exe"
+    - "dwm.exe"
+    - "csrss.exe"
     - "winlogon.exe"
     - "services.exe"
-    - "conhost.exe"
-    - "svchost.exe"
-  suspicious_dll_patterns:
-    - "reflective"
-    - "inject"
-    - "shellcode"
+  
+  # Suspicious network indicators
   suspicious_ports:
     - 4444  # Metasploit default
-    - 5555
-    - 6666
-    - 31337
-    - 8888
-    - 9999
+    - 5555  # Common RAT
+    - 6666  # Common backdoor
+    - 31337 # Elite/leet port
+    - 1337
 # YARA scanning configuration
 yara:
   enabled: false  # Set to true when you have YARA rules

@@ -81,7 +81,7 @@ def main() -> None:
     print("[*] Detecting code injection...")
     malfind_plugin = "windows.malfind.Malfind"
     if malfind_plugin in raw_outputs:
-        analyze_malfind(raw_outputs[malfind_plugin], analysis)
+        analyze_malfind(raw_outputs[malfind_plugin], analysis, config)
 
     # Optional: YARA scanning
     ycfg = config.get("yara", {})

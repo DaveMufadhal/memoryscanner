@@ -66,13 +66,37 @@ No suspicious activity detected based on current heuristics.
 ### Process List (pslist)
 
 ```text
+{% if analysis.parsed_data and analysis.parsed_data.pslist_raw %}
 {{ analysis.parsed_data.pslist_raw }}
+{% elif analysis.raw_outputs and 'windows.pslist.PsList' in analysis.raw_outputs %}
+{{ analysis.raw_outputs['windows.pslist.PsList'] }}
+{% else %}
+No process list data available.
+{% endif %}
 ```
 
 ### Network Connections (netscan)
 
 ```text
+{% if analysis.parsed_data and analysis.parsed_data.netscan_raw %}
 {{ analysis.parsed_data.netscan_raw }}
+{% elif analysis.raw_outputs and 'windows.netscan.NetScan' in analysis.raw_outputs %}
+{{ analysis.raw_outputs['windows.netscan.NetScan'] }}
+{% else %}
+No network connection data available.
+{% endif %}
+```
+
+### Malfind Output
+
+```text
+{% if analysis.parsed_data and analysis.parsed_data.malfind_raw %}
+{{ analysis.parsed_data.malfind_raw }}
+{% elif analysis.raw_outputs and 'windows.malfind.Malfind' in analysis.raw_outputs %}
+{{ analysis.raw_outputs['windows.malfind.Malfind'] }}
+{% else %}
+No malfind data available.
+{% endif %}
 ```
 
 {% endif %}
