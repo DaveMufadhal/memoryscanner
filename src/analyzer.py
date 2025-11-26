@@ -1,5 +1,5 @@
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 class AnalysisResult:
     """Container for analysis results and findings."""
@@ -48,7 +48,7 @@ class AnalysisResult:
             "severity": severity,
             "category": category,
             "description": description,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
         
         if process_name:

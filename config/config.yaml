@@ -2,7 +2,7 @@
 
 volatility:
   # Path to the `vol` (volatility3) CLI
-  binary_path: "vol"              # or absolute path if needed
+  binary_path: "C:\\Users\\asus\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python312\\Scripts\\vol.exe" # or absolute path if needed
   default_plugins:
     - "windows.pslist.PsList"
     - "windows.netscan.NetScan"
