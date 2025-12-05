@@ -2,7 +2,7 @@
 
 volatility:
   # Path to the `vol` (volatility3) CLI
-  binary_path: "C:\\Users\\asus\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python312\\Scripts\\vol.exe" # or absolute path if needed
+  binary_path: "vol"  # or absolute path if needed
   default_plugins:
     - "windows.pslist.PsList"
     - "windows.netscan.NetScan"
@@ -61,6 +61,16 @@ analysis:
     - "cmd.exe"      # Legitimate when spawned by explorer.exe
     - "wmic.exe"     # Legitimate system tool
   
+  # System processes that should NEVER spawn other processes
+  system_processes:
+    - "system"
+    - "smss.exe"
+    - "csrss.exe"
+    - "wininit.exe"
+    - "winlogon.exe"
+    - "lsm.exe"
+    - "lsass.exe"
+  
   # Suspicious parent-child relationships (context matters)
   suspicious_parent_child:
     # Office apps spawning scripts
@@ -71,6 +81,21 @@ analysis:
     - parent: ["iexplore.exe", "chrome.exe", "firefox.exe", "msedge.exe"]
       child: ["cmd.exe", "powershell.exe", "wscript.exe"]
       severity: "HIGH"
+  
+  # Expected parent-child relationships (validate process ancestry)
+  expected_parent_relationships:
+    "svchost.exe": ["services.exe"]
+    "services.exe": ["wininit.exe"]
+    "lsass.exe": ["wininit.exe"]
+    "explorer.exe": ["userinit.exe"]
+    "userinit.exe": ["winlogon.exe"]
+    "taskhost.exe": ["services.exe", "svchost.exe"]
+    "dwm.exe": ["svchost.exe"]
+    "spoolsv.exe": ["services.exe"]
+  
+  # Process attribute thresholds (for anomaly detection)
+  suspicious_thread_count: 100    # Processes with >100 threads (cryptominer indicator)
+  suspicious_handle_count: 5000   # Processes with >5000 handles (keylogger indicator)
   
   # Malfind whitelist - processes that legitimately have executable memory
   malfind_whitelist:
@@ -94,11 +119,31 @@ analysis:
     - 6666  # Common backdoor
     - 31337 # Elite/leet port
     - 1337
+  
+  # Memory artifact analysis thresholds
+  handle_analysis:
+    min_registry_persistence_accesses: 2  # Minimum registry key accesses to flag
+    min_suspicious_file_accesses: 3       # Minimum suspicious file accesses to flag
+  
+  vad_analysis:
+    max_executable_ratio: 0.3             # Max ratio of executable VADs (30%)
+    min_private_exec_vads: 3              # Min private executable VADs to flag
+    large_allocation_threshold: 256       # Pages (1MB)
+  
+  # Critical system DLLs that should only be in System32
+  critical_dlls:
+    - "ntdll.dll"
+    - "kernel32.dll"
+    - "kernelbase.dll"
+    - "user32.dll"
+    - "advapi32.dll"
 # YARA scanning configuration
 yara:
-  enabled: false  # Set to true when you have YARA rules
+  enabled: true  # Set to true when you have YARA rules
   rules_dir: "yara_rules"
   scan_memory: true
+  fast_scan: false  # Set to true for faster but less thorough scanning
+  timeout: 600  # Timeout in seconds for YARA scanning
 
 # Threat Intelligence Integration
 threat_intel:
@@ -119,10 +164,61 @@ mitre:
     command_execution: "T1059"
     network_connection: "T1071"
 
+# Confidence Scoring and False Positive Reduction
+confidence_scoring:
+  enabled: true
+  
+  # Minimum confidence thresholds to trigger alerts
+  alert_thresholds:
+    CRITICAL: 0.2   # Always alert on critical findings
+    HIGH: 0.4       # Need moderate confidence for high severity
+    MEDIUM: 0.5     # Higher bar for medium severity
+    LOW: 0.6        # Highest bar for low severity
+  
+  # Confidence factor weights (sum to 1.0)
+  factor_weights:
+    process_integrity: 0.20    # Path-based validation
+    digital_signature: 0.15    # Signature verification
+    parent_child: 0.20         # Relationship validation
+    timestamp: 0.10            # Timestamp anomalies
+    network_behavior: 0.15     # Network patterns
+    memory_characteristics: 0.10  # Memory anomalies
+    runtime_behavior: 0.10     # Command line patterns
+  
+  # Trusted paths for whitelisting
+  trusted_paths:
+    - "c:\\\\windows\\\\system32\\\\"
+    - "c:\\\\windows\\\\syswow64\\\\"
+    - "c:\\\\windows\\\\winsxs\\\\"
+    - "c:\\\\program files\\\\windows defender\\\\"
+    - "c:\\\\program files\\\\common files\\\\microsoft shared\\\\"
+    - "c:\\\\windows\\\\microsoft.net\\\\framework"
+  
+  # Evidence correlation settings
+  correlation:
+    min_indicators_for_boost: 3  # Minimum indicators to apply correlation boost
+    correlation_boost_per_indicator: 0.1  # Confidence boost per additional indicator
+    max_correlation_boost: 0.3   # Maximum total boost from correlation
+  
+  # Scoring decay for common false positives
+  decay:
+    enabled: true
+    occurrence_threshold: 2     # Start decay after N occurrences
+    max_decay: 0.8             # Maximum decay (20% of original score remains)
+  
+  # Multi-factor validation requirements
+  validation:
+    require_multiple_factors: true  # Require 2+ suspicious factors before alerting
+    min_factors_critical: 1    # CRITICAL findings need only 1 factor
+    min_factors_high: 2        # HIGH findings need 2 factors
+    min_factors_medium: 2      # MEDIUM findings need 2 factors
+    min_factors_low: 3         # LOW findings need 3 factors
+
 # Report Generation
 report:
   output_dir: "reports"
   include_raw_sections: true
+  include_confidence_report: true  # Include confidence scoring details
   format: "markdown"  # Options: markdown, html, pdf
   
 # Scoring thresholds
@@ -131,3 +227,89 @@ scoring:
   medium_risk: 30
   high_risk: 50
   critical_risk: 100
+
+# Enhanced Detection Engine Configuration
+detection_engine:
+  enabled: true
+  
+  # LOLBin Detection
+  lolbin_detection:
+    enabled: true
+    min_abuse_score: 10  # Minimum score to flag as abuse
+    check_parent_process: true
+    check_command_line: true
+  
+  # Entropy Analysis (Packed/Obfuscated Code)
+  entropy_analysis:
+    enabled: true
+    high_entropy_threshold: 7.0   # Shannon entropy > 7.0 indicates packing
+    encrypted_threshold: 7.5       # Entropy > 7.5 indicates encryption
+    min_bytes_required: 100        # Minimum bytes needed for analysis
+    check_packer_signatures: true
+  
+  # Statistical Baseline Analysis
+  statistical_analysis:
+    enabled: true
+    detect_process_count_anomalies: true
+    detect_thread_anomalies: true
+    detect_handle_anomalies: true
+    detect_network_anomalies: true
+    
+    # Custom baselines (can be tuned for specific environments)
+    custom_baselines:
+      enabled: false
+      baseline_file: "baselines/custom_baseline.yaml"
+  
+  # Mutex Analysis
+  mutex_analysis:
+    enabled: true
+    check_malware_patterns: true
+    check_random_mutexes: true
+    min_hex_length: 8  # Minimum length for hex-like mutex names
+  
+  # Process Hollowing Detection
+  hollowing_detection:
+    enabled: true
+    min_hollowing_score: 40        # Score >= 40 indicates hollowing
+    check_unbacked_executable: true
+    check_rwx_regions: true
+    check_private_executable: true
+  
+  # API Hook Detection
+  api_hook_detection:
+    enabled: true
+    check_jmp_hooks: true
+    check_inline_patches: true
+    check_nop_sleds: true
+  
+  # Behavioral Analysis
+  behavioral_analysis:
+    enabled: true
+    detect_persistence: true
+    detect_lateral_movement: true
+    detect_data_staging: true
+    detect_credential_access: true
+    detect_defense_evasion: true
+  
+  # Parent-Child Relationship Analysis
+  parent_child_analysis:
+    enabled: true
+    flag_orphaned_processes: true
+    flag_abnormal_spawning: true
+    
+    # Known abnormal parent-child relationships
+    abnormal_spawning:
+      - parent: "winword.exe"
+        suspicious_children: ["powershell.exe", "cmd.exe", "wscript.exe", "cscript.exe"]
+      - parent: "excel.exe"
+        suspicious_children: ["powershell.exe", "cmd.exe", "wscript.exe", "cscript.exe"]
+      - parent: "outlook.exe"
+        suspicious_children: ["powershell.exe", "cmd.exe", "wscript.exe", "cscript.exe"]
+      - parent: "acrord32.exe"
+        suspicious_children: ["powershell.exe", "cmd.exe"]
+      - parent: "iexplore.exe"
+        suspicious_children: ["powershell.exe", "cmd.exe"]
+      - parent: "chrome.exe"
+        suspicious_children: ["powershell.exe", "cmd.exe"]
+      - parent: "firefox.exe"
+        suspicious_children: ["powershell.exe", "cmd.exe"]

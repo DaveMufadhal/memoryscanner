@@ -9,12 +9,20 @@
 
 - Suspicious Processes: {{ analysis.suspicious_processes | length }}
 - Suspicious Network Connections: {{ analysis.suspicious_network | length }}
-- YARA Matches: {{ analysis.yara_matches | length }}
+- YARA Matches: {{ analysis.yara_findings | length }}
 - Risk Score: {{ analysis.score }}
 
 {{ analysis.summary }}
 
 ---
+
+{% if analysis.malware_attribution %}
+## 🎯 Malware Attribution
+
+{{ analysis.malware_attribution }}
+
+---
+{% endif %}
 
 {% if analysis.suspicious_processes %}
 ## Suspicious Processes
@@ -42,13 +50,110 @@
 {% endfor %}
 {% endif %}
 
-{% if analysis.yara_matches %}
-## YARA Matches
+{% if analysis.yara_findings %}
+## YARA Threat Detection
 
-{% for match in analysis.yara_matches %}
-### Match: {{ match.rule }}
+{% for match in analysis.yara_findings %}
+### ⚠️ {{ match.rule_name|default(match.rule) }}
 
-{{ match.description }}
+**Category:** {{ match.category|default("Unknown") }}
+**Severity:** {{ match.severity|default("MEDIUM") }}
+{% if match.malware_family %}**Malware Family:** {{ match.malware_family }}{% endif %}
+{% if match.mitre_techniques %}**MITRE ATT&CK:** {{ match.mitre_techniques|join(", ") }}{% endif %}
+
+{{ match.description|default("YARA rule matched") }}
+
+{% if match.matched_strings %}
+**Matched Strings:**
+{% for string in match.matched_strings[:5] %}
+- {{ string }}
+{% endfor %}
+{% endif %}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.handle_artifacts %}
+## Handle Artifact Analysis
+
+{% for artifact in analysis.handle_artifacts %}
+### {{ artifact.process }} - {{ artifact.reason }}
+
+**Severity:** {{ artifact.severity }}
+**Count:** {{ artifact.count }}
+
+{% if artifact.technique %}**MITRE ATT&CK:** {{ artifact.technique }}{% endif %}
+
+**Details:**
+{% for detail in artifact.details[:5] %}
+- PID: {{ detail.pid }}{% if detail.registry_key %}, Key: {{ detail.registry_key }}{% endif %}{% if detail.file_path %}, File: {{ detail.file_path }}{% endif %}{% if detail.target %}, Target: {{ detail.target }}{% endif %}
+{% endfor %}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.vad_anomalies %}
+## VAD (Virtual Address Descriptor) Anomalies
+
+{% for anomaly in analysis.vad_anomalies %}
+### {{ anomaly.process }} - {{ anomaly.reason }}
+
+**Severity:** {{ anomaly.severity }}
+{% if anomaly.technique %}**MITRE ATT&CK:** {{ anomaly.technique }}{% endif %}
+
+{% if anomaly.protection %}**Protection:** {{ anomaly.protection }}{% endif %}
+{% if anomaly.private_exec_vads %}**Private Executable VADs:** {{ anomaly.private_exec_vads }}{% endif %}
+{% if anomaly.ratio %}**Executable Ratio:** {{ anomaly.ratio }}{% endif %}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.registry_persistence %}
+## Registry Persistence Mechanisms
+
+{% for persist in analysis.registry_persistence %}
+### {{ persist.reason }}
+
+**Severity:** {{ persist.severity }}
+{% if persist.technique %}**MITRE ATT&CK:** {{ persist.technique }}{% endif %}
+
+{% if persist.process %}**Process:** {{ persist.process }}{% endif %}
+{% if persist.hive_name %}**Hive:** {{ persist.hive_name }}{% endif %}
+{% if persist.count %}**Registry Key Accesses:** {{ persist.count }}{% endif %}
+
+{% if persist.details %}
+**Details:**
+{% for detail in persist.details[:5] %}
+- Registry Key: {{ detail.registry_key }}
+{% endfor %}
+{% endif %}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.memory_mapped_files %}
+## Memory-Mapped File Analysis (Suspicious DLLs)
+
+{% for mmap in analysis.memory_mapped_files %}
+### {{ mmap.process }} - {{ mmap.reason }}
+
+**Severity:** {{ mmap.severity }}
+{% if mmap.technique %}**MITRE ATT&CK:** {{ mmap.technique }}{% endif %}
+
+{% if mmap.count %}**Suspicious DLL Count:** {{ mmap.count }}{% endif %}
+{% if mmap.unbacked_count %}**Unbacked DLLs (Reflective Injection):** {{ mmap.unbacked_count }}{% endif %}
+
+{% if not analysis.suspicious_processes and not analysis.suspicious_network and not analysis.yara_findings %}
+**Details:**
+{% for detail in mmap.details %}
+- Path: {{ detail.dll_path }}
+- Base: {{ detail.base }}, Size: {{ detail.size }}
+{% endfor %}
+{% endif %}
 
 ---
 {% endfor %}
@@ -58,6 +163,163 @@
 ## No Issues Detected
 
 No suspicious activity detected based on current heuristics.
+{% endif %}
+
+{% if analysis.lolbin_abuse %}
+## Living Off the Land Binaries (LOLBins) Abuse
+
+{% for lolbin in analysis.lolbin_abuse %}
+### {{ lolbin.process }} - {{ lolbin.category }}
+
+**Severity:** {{ lolbin.severity }}
+**MITRE ATT&CK:** {{ lolbin.mitre }}
+**Abuse Score:** {{ lolbin.abuse_score }}
+
+**Indicators:**
+{% for indicator in lolbin.indicators %}
+- {{ indicator }}
+{% endfor %}
+
+**Command Line:** `{{ lolbin.command_line }}`
+**Parent Process:** {{ lolbin.parent }}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.entropy_analysis %}
+## Packed/Obfuscated Code Detection
+
+{% for entropy in analysis.entropy_analysis %}
+### {{ entropy.process }} (PID: {{ entropy.pid }})
+
+**Entropy:** {{ "%.3f"|format(entropy.entropy) }} (High entropy indicates packing/encryption)
+{% if entropy.packer %}**Detected Packer:** {{ entropy.packer }}{% endif %}
+**Packed:** {% if entropy.is_packed %}Yes{% else %}No{% endif %}
+**Encrypted:** {% if entropy.is_encrypted %}Yes{% else %}No{% endif %}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.statistical_anomalies %}
+## Statistical Anomalies
+
+{% for anomaly in analysis.statistical_anomalies %}
+### {{ anomaly.type|replace('_', ' ')|title }}
+
+{% if anomaly.process %}**Process:** {{ anomaly.process }}{% endif %}
+{% if anomaly.pid %}**PID:** {{ anomaly.pid }}{% endif %}
+**Reason:** {{ anomaly.reason }}
+**Severity:** {{ anomaly.severity }}
+
+{% if anomaly.observed %}**Observed:** {{ anomaly.observed }}{% endif %}
+{% if anomaly.expected_range %}**Expected Range:** {{ anomaly.expected_range }}{% endif %}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.mutex_artifacts %}
+## Malware Mutex Detection
+
+{% for mutex in analysis.mutex_artifacts %}
+### Mutex: {{ mutex.mutex_name }}
+
+**Process:** {{ mutex.process }} (PID: {{ mutex.pid }})
+**Description:** {{ mutex.description }}
+**Severity:** {{ mutex.severity }}
+**MITRE ATT&CK:** {{ mutex.mitre }}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.hollowed_processes %}
+## Process Hollowing Detection
+
+{% for hollow in analysis.hollowed_processes %}
+### {{ hollow.process }} (PID: {{ hollow.pid }})
+
+**Hollowing Score:** {{ hollow.hollow_score }}
+**Severity:** {{ hollow.severity }}
+**MITRE ATT&CK:** {{ hollow.mitre }}
+
+**Indicators:**
+{% for indicator in hollow.indicators %}
+- {{ indicator }}
+{% endfor %}
+
+**Details:**
+- Unbacked Executable Regions: {{ hollow.unbacked_exec }}
+- RWX Memory Regions: {{ hollow.rwx_regions }}
+- Private Executable Regions: {{ hollow.private_exec }}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.api_hooks %}
+## API Hook Detection
+
+{% for hook in analysis.api_hooks %}
+### {{ hook.process }} (PID: {{ hook.pid }})
+
+**Hook Type:** {{ hook.hook_type }}
+**Address:** {{ hook.address }}
+**Severity:** {{ hook.severity }}
+**MITRE ATT&CK:** {{ hook.mitre }}
+
+---
+{% endfor %}
+{% endif %}
+
+{% if analysis.behavioral_patterns %}
+## Behavioral Pattern Analysis
+
+{% for category, findings in analysis.behavioral_patterns.items() %}
+{% if findings %}
+### {{ category|replace('_', ' ')|title }}
+
+{% for finding in findings %}
+- **{{ finding.process }}** (PID: {{ finding.pid }}): {{ finding.method }} - MITRE: {{ finding.mitre }}
+{% endfor %}
+
+{% endif %}
+{% endfor %}
+---
+{% endif %}
+
+{% if analysis.confidence_report and config.report.include_confidence_report %}
+## Confidence Scoring & False Positive Reduction
+
+### Summary
+- **Total Findings:** {{ (analysis.findings | length) + (analysis.suppressed_findings | length) }}
+- **High-Confidence Alerts:** {{ analysis.findings | length }}
+- **Suppressed (Low-Confidence):** {{ analysis.suppressed_findings | length }}
+
+{% if analysis.suppressed_findings and analysis.suppressed_findings | length > 0 %}
+### Suppressed Findings
+The following were flagged but suppressed due to low confidence:
+
+{% for finding in analysis.suppressed_findings[:5] %}
+- **{{ finding.name or finding.process_name }}** (Confidence: {{ "%.2f"|format(finding.confidence_score or 0.0) }}): {{ finding.reason or finding.description }}
+{% endfor %}
+{% if analysis.suppressed_findings | length > 5 %}... and {{ analysis.suppressed_findings | length - 5 }} more.{% endif %}
+{% endif %}
+
+{% if analysis.correlated_evidence %}
+### High-Confidence Processes
+Processes with multiple correlated indicators:
+
+{% for pid, data in analysis.correlated_evidence.items() %}
+{% if data.final_confidence >= 0.7 %}
+**PID {{ pid }}:** {{ data.indicator_count }} indicators, Confidence: {{ "%.2f"|format(data.final_confidence) }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+---
 {% endif %}
 
 {% if config.report.include_raw_sections %}
